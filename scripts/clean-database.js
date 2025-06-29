@@ -42,6 +42,8 @@ async function cleanDatabase() {
     "DROP TABLE IF EXISTS widget_configs CASCADE",
     "DROP TABLE IF EXISTS documents CASCADE",
     "DROP TABLE IF EXISTS functions CASCADE",
+    "DROP TABLE IF EXISTS agent_analytics CASCADE",
+    "DROP TABLE IF EXISTS mcp_tools CASCADE",
     "DROP TABLE IF EXISTS agents CASCADE",
     "DROP FUNCTION IF EXISTS update_updated_at_column() CASCADE",
   ]
@@ -54,7 +56,7 @@ async function cleanDatabase() {
     console.log(`  ${i + 1}/${cleanupStatements.length}: ${shortStatement}`)
 
     try {
-      await sql(statement)
+      await sql`${statement}`
     } catch (error) {
       // Ignore errors for objects that don't exist
       if (!error.message.includes("does not exist")) {

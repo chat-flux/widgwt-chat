@@ -43,6 +43,20 @@ async function runSQLFile(filePath) {
 
   const sqlContent = fs.readFileSync(fullPath, "utf8")
 
+  // For CREATE operations, execute as single statement
+  if (sqlContent.includes("CREATE TABLE") || sqlContent.includes("CREATE FUNCTION")) {
+    console.log("📊 Executing SQL schema file...")
+    try {
+      await sql`${sqlContent}`
+      console.log("✅ SQL file executed successfully!")
+    } catch (error) {
+      console.error(`❌ Error executing SQL file: ${error.message}`)
+      throw error
+    }
+    return
+  }
+
+  // For INSERT/UPDATE/DELETE operations, split into statements
   const statements = sqlContent
     .split(";")
     .map((stmt) => stmt.trim())
@@ -56,7 +70,7 @@ async function runSQLFile(filePath) {
     console.log(`  ${i + 1}/${statements.length}: ${shortStatement}`)
 
     try {
-      await sql(statement)
+      await sql`${statement}`
     } catch (error) {
       console.error(`❌ Error executing statement ${i + 1}: ${error.message}`)
       console.error(`Statement: ${statement}`)

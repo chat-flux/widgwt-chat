@@ -62,6 +62,8 @@ async function cleanDatabase(sql) {
     "DROP TABLE IF EXISTS widget_configs CASCADE",
     "DROP TABLE IF EXISTS documents CASCADE",
     "DROP TABLE IF EXISTS functions CASCADE",
+    "DROP TABLE IF EXISTS agent_analytics CASCADE",
+    "DROP TABLE IF EXISTS mcp_tools CASCADE",
     "DROP TABLE IF EXISTS agents CASCADE",
     "DROP FUNCTION IF EXISTS update_updated_at_column() CASCADE",
   ]
@@ -74,7 +76,7 @@ async function cleanDatabase(sql) {
     console.log(`  ${i + 1}/${cleanupStatements.length}: ${shortStatement}`)
 
     try {
-      await sql(statement)
+      await sql`${statement}`
     } catch (error) {
       // Ignore errors for objects that don't exist
       if (!error.message.includes("does not exist")) {
@@ -90,37 +92,27 @@ async function createTables(sql) {
   const createTablesPath = path.join(__dirname, "001-create-tables.sql")
   const createTablesSQL = fs.readFileSync(createTablesPath, "utf8")
 
-  const statements = createTablesSQL
-    .split(";")
-    .map((stmt) => stmt.trim())
-    .filter((stmt) => stmt.length > 0)
+  // Execute the entire SQL file as one statement for CREATE operations
+  console.log("  Creating database schema...")
 
-  console.log(`  Executing ${statements.length} statements...`)
-
-  for (let i = 0; i < statements.length; i++) {
-    const statement = statements[i]
-    const shortStatement = statement.length > 50 ? statement.substring(0, 47) + "..." : statement
-    console.log(`  ${i + 1}/${statements.length}: ${shortStatement}`)
-
-    try {
-      await sql(statement)
-    } catch (error) {
-      console.error(`❌ Error executing statement ${i + 1}: ${error.message}`)
-      throw error
-    }
+  try {
+    await sql`${createTablesSQL}`
+    console.log("✅ Tables created")
+  } catch (error) {
+    console.error(`❌ Error creating tables: ${error.message}`)
+    throw error
   }
-
-  console.log("✅ Tables created")
 }
 
 async function seedData(sql) {
   const seedDataPath = path.join(__dirname, "002-seed-data.sql")
   const seedDataSQL = fs.readFileSync(seedDataPath, "utf8")
 
+  // Split into individual INSERT statements for better error handling
   const statements = seedDataSQL
     .split(";")
     .map((stmt) => stmt.trim())
-    .filter((stmt) => stmt.length > 0)
+    .filter((stmt) => stmt.length > 0 && stmt.toUpperCase().startsWith("INSERT"))
 
   console.log(`  Executing ${statements.length} statements...`)
 
@@ -130,7 +122,7 @@ async function seedData(sql) {
     console.log(`  ${i + 1}/${statements.length}: ${shortStatement}`)
 
     try {
-      await sql(statement)
+      await sql`${statement}`
     } catch (error) {
       console.error(`❌ Error executing statement ${i + 1}: ${error.message}`)
       throw error
