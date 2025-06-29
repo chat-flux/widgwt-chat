@@ -1,4 +1,9 @@
 -- Insert sample agents
+INSERT INTO agents (id, user_id, name, description, instructions, model, temperature, max_tokens, status, training_status, training_progress) VALUES
+('550e8400-e29b-41d4-a716-446655440001', 'user123', 'Customer Support Bot', 'AI assistant specialized in customer support and FAQ', 'You are a helpful customer support assistant. Always be polite, professional, and try to resolve customer issues efficiently. If you cannot help with something, escalate to a human agent.', 'gpt-4', 0.7, 1000, 'active', 'trained', 100),
+('550e8400-e29b-41d4-a716-446655440002', 'user123', 'Sales Assistant', 'AI assistant for sales inquiries and product recommendations', 'You are a knowledgeable sales assistant. Help customers find the right products, answer questions about features and pricing, and guide them through the purchase process.', 'gpt-4', 0.8, 1200, 'active', 'trained', 100),
+('550e8400-e29b-41d4-a716-446655440003', 'user123', 'Technical Support', 'AI assistant for technical troubleshooting and support', 'You are a technical support specialist. Help users troubleshoot technical issues, provide step-by-step solutions, and explain technical concepts in simple terms.', 'gpt-4', 0.6, 1500, 'active', 'training', 75);
+
 INSERT INTO agents (id, name, description, system_prompt, personality, color, status, user_id) VALUES
 (
     '550e8400-e29b-41d4-a716-446655440000',
@@ -13,31 +18,7 @@ INSERT INTO agents (id, name, description, system_prompt, personality, color, st
 
 INSERT INTO agents (id, name, description, system_prompt, personality, color, status, user_id) VALUES
 (
-    '550e8400-e29b-41d4-a716-446655440001',
-    'Assistente de Vendas',
-    'Especialista em vendas e atendimento ao cliente',
-    'Você é um assistente de vendas experiente. Ajude os clientes a encontrar os melhores produtos e feche vendas de forma natural e consultiva.',
-    'Persuasivo e amigável',
-    '#10B981',
-    'active',
-    'user_1'
-);
-
-INSERT INTO agents (id, name, description, system_prompt, personality, color, status, user_id) VALUES
-(
-    '550e8400-e29b-41d4-a716-446655440002',
-    'Suporte Técnico',
-    'Especialista em resolver problemas técnicos',
-    'Você é um especialista em suporte técnico. Resolva problemas de forma clara e didática, sempre perguntando detalhes para dar a melhor solução.',
-    'Paciente e detalhista',
-    '#3B82F6',
-    'active',
-    'user_1'
-);
-
-INSERT INTO agents (id, name, description, system_prompt, personality, color, status, user_id) VALUES
-(
-    '550e8400-e29b-41d4-a716-446655440003',
+    '550e8400-e29b-41d4-a716-446655440004',
     'Assistente Jurídico',
     'Especialista em questões legais e contratos',
     'Você é um assistente jurídico. Forneça orientações legais precisas e sempre recomende consultar um advogado para casos complexos.',
@@ -71,6 +52,20 @@ INSERT INTO conversations (id, agent_id, title, status) VALUES
     'Orçamento personalizado',
     'archived'
 );
+
+INSERT INTO conversations (id, agent_id, title, status) VALUES
+(
+    '660e8400-e29b-41d4-a716-446655440003',
+    '550e8400-e29b-41d4-a716-446655440003',
+    'Login Issues',
+    'active'
+);
+
+INSERT INTO conversations (id, agent_id, title, status) VALUES
+('660e8400-e29b-41d4-a716-446655440001', '550e8400-e29b-41d4-a716-446655440001', 'Order Status Inquiry', 'active'),
+('660e8400-e29b-41d4-a716-446655440002', '550e8400-e29b-41d4-a716-446655440001', 'Refund Request', 'completed'),
+('660e8400-e29b-41d4-a716-446655440003', '550e8400-e29b-41d4-a716-446655440002', 'Product Recommendation', 'active'),
+('660e8400-e29b-41d4-a716-446655440004', '550e8400-e29b-41d4-a716-446655440003', 'Login Issues', 'active');
 
 -- Insert sample messages
 INSERT INTO messages (conversation_id, role, content) VALUES
@@ -114,6 +109,16 @@ INSERT INTO messages (conversation_id, role, content) VALUES
     'assistant',
     'Entendo sua dificuldade com o login. Vamos resolver isso juntos. Primeiro, pode me confirmar qual email você está usando para tentar fazer login?'
 );
+
+INSERT INTO messages (conversation_id, role, content) VALUES
+('660e8400-e29b-41d4-a716-446655440001', 'user', 'Hi, I want to check the status of my order #12345'),
+('660e8400-e29b-41d4-a716-446655440001', 'assistant', 'Hello! I''d be happy to help you check your order status. Let me look up order #12345 for you.'),
+('660e8400-e29b-41d4-a716-446655440002', 'user', 'I need to return a product I bought last week'),
+('660e8400-e29b-41d4-a716-446655440002', 'assistant', 'I understand you''d like to return a product. Could you please provide me with your order number and the reason for the return?'),
+('660e8400-e29b-41d4-a716-446655440003', 'user', 'I''m looking for a laptop for programming'),
+('660e8400-e29b-41d4-a716-446655440003', 'assistant', 'Great! I can help you find the perfect laptop for programming. What''s your budget range and what type of programming will you be doing?'),
+('660e8400-e29b-41d4-a716-446655440004', 'user', 'I can''t log into my account'),
+('660e8400-e29b-41d4-a716-446655440004', 'assistant', 'I''m sorry to hear you''re having trouble logging in. Let''s troubleshoot this step by step. Are you getting any specific error messages?');
 
 -- Insert sample documents
 INSERT INTO documents (agent_id, filename, original_name, file_type, file_size, content, status) VALUES
@@ -182,7 +187,19 @@ INSERT INTO documents (agent_id, filename, original_name, file_type, file_size, 
     'processing'
 );
 
+INSERT INTO documents (agent_id, name, content, file_type, file_size, status) VALUES
+('550e8400-e29b-41d4-a716-446655440001', 'FAQ Document', 'Frequently Asked Questions about our products and services...', 'text/plain', 2048, 'active'),
+('550e8400-e29b-41d4-a716-446655440001', 'Return Policy', 'Our return policy allows customers to return items within 30 days...', 'text/plain', 1024, 'active'),
+('550e8400-e29b-41d4-a716-446655440002', 'Product Catalog', 'Complete catalog of all available products with specifications...', 'text/plain', 4096, 'active'),
+('550e8400-e29b-41d4-a716-446655440003', 'Troubleshooting Guide', 'Step-by-step troubleshooting guide for common technical issues...', 'text/plain', 3072, 'active');
+
 -- Insert sample functions
+INSERT INTO functions (agent_id, name, description, parameters, code, status) VALUES
+('550e8400-e29b-41d4-a716-446655440001', 'check_order_status', 'Check the status of a customer order', '{"type": "object", "properties": {"order_id": {"type": "string", "description": "The order ID to check"}}, "required": ["order_id"]}', 'function checkOrderStatus(orderId) { return `Order ${orderId} is being processed`; }', 'active'),
+('550e8400-e29b-41d4-a716-446655440001', 'process_refund', 'Process a refund request', '{"type": "object", "properties": {"order_id": {"type": "string"}, "reason": {"type": "string"}}, "required": ["order_id", "reason"]}', 'function processRefund(orderId, reason) { return `Refund initiated for order ${orderId}`; }', 'active'),
+('550e8400-e29b-41d4-a716-446655440002', 'get_product_info', 'Get detailed product information', '{"type": "object", "properties": {"product_id": {"type": "string"}}, "required": ["product_id"]}', 'function getProductInfo(productId) { return `Product ${productId} details...`; }', 'active'),
+('550e8400-e29b-41d4-a716-446655440003', 'reset_password', 'Reset user password', '{"type": "object", "properties": {"email": {"type": "string"}}, "required": ["email"]}', 'function resetPassword(email) { return `Password reset link sent to ${email}`; }', 'active');
+
 INSERT INTO functions (agent_id, name, description, parameters, code, status) VALUES
 (
     '550e8400-e29b-41d4-a716-446655440000',
@@ -244,6 +261,11 @@ INSERT INTO functions (agent_id, name, description, parameters, code, status) VA
 );
 
 -- Insert sample widget configs
+INSERT INTO widget_configs (agent_id, theme, primary_color, position, welcome_message, placeholder_text, show_agent_name, show_timestamp, enable_voice, enable_file_upload) VALUES
+('550e8400-e29b-41d4-a716-446655440001', 'light', '#3b82f6', 'bottom-right', 'Hello! I''m here to help with your customer support needs.', 'How can I assist you today?', true, true, false, true),
+('550e8400-e29b-41d4-a716-446655440002', 'dark', '#10b981', 'bottom-left', 'Hi! I''m your sales assistant. Let me help you find what you need.', 'What are you looking for?', true, false, false, false),
+('550e8400-e29b-41d4-a716-446655440003', 'light', '#f59e0b', 'bottom-right', 'Technical support here! I''ll help you solve any issues.', 'Describe your technical issue...', true, true, false, true);
+
 INSERT INTO widget_configs (agent_id, title, subtitle, primary_color, position, welcome_message, placeholder) VALUES
 (
     '550e8400-e29b-41d4-a716-446655440000',
@@ -280,6 +302,15 @@ INSERT INTO widget_configs (agent_id, title, subtitle, primary_color, position, 
 INSERT INTO widget_configs (agent_id, title, subtitle, primary_color, welcome_message) VALUES
 (
     '550e8400-e29b-41d4-a716-446655440003',
+    'Assistente Jurídico',
+    'Consultoria jurídica especializada',
+    '#8B5CF6',
+    'Bem-vindo! Sou seu assistente jurídico. Em que posso orientá-lo?'
+);
+
+INSERT INTO widget_configs (agent_id, title, subtitle, primary_color, welcome_message) VALUES
+(
+    '550e8400-e29b-41d4-a716-446655440004',
     'Assistente Jurídico',
     'Consultoria jurídica especializada',
     '#8B5CF6',

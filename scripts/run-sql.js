@@ -1,63 +1,56 @@
-import { neon } from "@neondatabase/serverless"
-import fs from "fs"
-import path from "path"
+const { neon } = require("@neondatabase/serverless")
+const fs = require("fs")
+const path = require("path")
 
-if (!process.env.DATABASE_URL) {
-  console.error("❌ DATABASE_URL environment variable is not set")
-  process.exit(1)
-}
-
-const sql = neon(process.env.DATABASE_URL)
-
-async function runSQL(filename) {
+async function runSqlFile(sqlFilePath) {
   try {
-    console.log(`🔄 Running SQL file: ${filename}`)
+    console.log(`📄 Running SQL file: ${sqlFilePath}`)
 
-    const filePath = path.resolve(filename)
-
-    if (!fs.existsSync(filePath)) {
-      console.error(`❌ File not found: ${filePath}`)
-      process.exit(1)
+    if (!process.env.DATABASE_URL) {
+      throw new Error("DATABASE_URL environment variable is not set")
     }
 
-    const sqlContent = fs.readFileSync(filePath, "utf8")
+    const sql = neon(process.env.DATABASE_URL)
 
-    // Split SQL into individual statements
+    // Check if file exists
+    if (!fs.existsSync(sqlFilePath)) {
+      throw new Error(`SQL file not found: ${sqlFilePath}`)
+    }
+
+    // Read SQL file
+    const sqlContent = fs.readFileSync(sqlFilePath, "utf8")
+
+    // Split SQL into individual statements and execute them
     const statements = sqlContent
       .split(";")
       .map((stmt) => stmt.trim())
       .filter((stmt) => stmt.length > 0 && !stmt.startsWith("--"))
 
-    console.log(`📄 Executing ${statements.length} statements...`)
+    console.log(`📊 Found ${statements.length} SQL statements to execute`)
 
     for (let i = 0; i < statements.length; i++) {
       const statement = statements[i]
-      if (statement.trim()) {
-        try {
-          console.log(`  ${i + 1}/${statements.length}: ${statement.substring(0, 50)}...`)
-          await sql.unsafe(statement)
-        } catch (error) {
-          console.error(`❌ Error on statement ${i + 1}:`, error.message)
-          console.error(`Statement: ${statement}`)
-          throw error
-        }
-      }
+      console.log(`  ${i + 1}/${statements.length}: ${statement.substring(0, 50)}...`)
+      await sql`${sql.unsafe(statement)}`
     }
 
-    console.log("✅ SQL execution completed successfully!")
+    console.log("✅ SQL file executed successfully!")
   } catch (error) {
-    console.error("❌ Error running SQL:", error)
+    console.error("❌ Error executing SQL file:", error.message)
+    console.error(error.stack)
     process.exit(1)
   }
 }
 
-// Get filename from command line arguments
-const filename = process.argv[2]
+// Get SQL file path from command line arguments
+const sqlFilePath = process.argv[2]
 
-if (!filename) {
-  console.error("❌ Please provide a SQL file path")
-  console.log("Usage: node scripts/run-sql.js <path-to-sql-file>")
+if (!sqlFilePath) {
+  console.error("❌ Please provide a SQL file path as an argument")
+  console.error("Usage: node run-sql.js <path-to-sql-file>")
   process.exit(1)
 }
 
-runSQL(filename)
+// Resolve relative path
+const resolvedPath = path.resolve(sqlFilePath)
+runSqlFile(resolvedPath)

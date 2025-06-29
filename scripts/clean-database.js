@@ -1,46 +1,43 @@
-import { neon } from "@neondatabase/serverless"
-import fs from "fs"
-import path from "path"
-
-if (!process.env.DATABASE_URL) {
-  console.error("❌ DATABASE_URL environment variable is not set")
-  process.exit(1)
-}
-
-const sql = neon(process.env.DATABASE_URL)
+const { neon } = require("@neondatabase/serverless")
+const fs = require("fs")
+const path = require("path")
 
 async function cleanDatabase() {
   try {
     console.log("🧹 Starting database cleanup...")
 
-    const cleanScript = fs.readFileSync(path.join(process.cwd(), "scripts", "000-clean-database.sql"), "utf8")
+    if (!process.env.DATABASE_URL) {
+      throw new Error("DATABASE_URL environment variable is not set")
+    }
 
-    // Split SQL into individual statements and filter out empty ones
-    const statements = cleanScript
+    const sql = neon(process.env.DATABASE_URL)
+
+    // Read and execute the clean SQL file
+    const cleanSqlPath = path.join(__dirname, "000-clean-database.sql")
+    const cleanSql = fs.readFileSync(cleanSqlPath, "utf8")
+
+    // Split SQL into individual statements and execute them
+    const statements = cleanSql
       .split(";")
       .map((stmt) => stmt.trim())
       .filter((stmt) => stmt.length > 0 && !stmt.startsWith("--"))
 
-    console.log(`📄 Executing ${statements.length} cleanup statements...`)
-
     for (let i = 0; i < statements.length; i++) {
       const statement = statements[i]
-      if (statement.trim()) {
-        try {
-          console.log(`  ${i + 1}/${statements.length}: ${statement.substring(0, 50)}...`)
-          await sql.unsafe(statement)
-        } catch (error) {
-          // Ignore errors for objects that don't exist
-          if (!error.message.includes("does not exist")) {
-            console.warn(`⚠️  Warning on statement ${i + 1}: ${error.message}`)
-          }
+      try {
+        console.log(`  ${i + 1}/${statements.length}: ${statement.substring(0, 50)}...`)
+        await sql`${sql.unsafe(statement)}`
+      } catch (error) {
+        // Ignore errors for objects that don't exist
+        if (!error.message.includes("does not exist")) {
+          console.warn(`Warning: ${error.message}`)
         }
       }
     }
 
-    console.log("✅ Database cleanup completed!")
+    console.log("✅ Database cleaned successfully!")
   } catch (error) {
-    console.error("❌ Error during database cleanup:", error)
+    console.error("❌ Error cleaning database:", error.message)
     process.exit(1)
   }
 }

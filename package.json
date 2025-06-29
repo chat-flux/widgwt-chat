@@ -1,9 +1,14 @@
 {
-  "name": "my-v0-project",
+  "name": "ai-agent-platform",
   "version": "0.1.0",
   "private": true,
   "scripts": {
     "build": "next build",
+    "check-env": "node scripts/check-env.js",
+    "db:clean": "node scripts/clean-database.js",
+    "db:create": "node scripts/run-sql.js scripts/001-create-tables.sql",
+    "db:reset": "node scripts/reset-database.js",
+    "db:seed": "node scripts/run-sql.js scripts/002-seed-data.sql",
     "dev": "next dev",
     "lint": "next lint",
     "start": "next start"
