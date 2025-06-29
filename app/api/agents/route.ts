@@ -13,7 +13,8 @@ export async function GET(request: NextRequest) {
         COALESCE(func_count.count, 0) as functions_count,
         COALESCE(conv_count.count, 0) as conversations_count,
         wc.is_published as widget_published,
-        COALESCE(wc.embed_count, 0) as widget_embed_count
+        COALESCE(wc.embed_count, 0) as widget_embed_count,
+        wc.last_embed
       FROM agents a
       LEFT JOIN (
         SELECT agent_id, COUNT(*) as count 
@@ -104,12 +105,14 @@ export async function POST(request: NextRequest) {
 
     // Create widget config for the new agent
     await sql`
-      INSERT INTO widget_configs (agent_id, title, subtitle, welcome_message)
+      INSERT INTO widget_configs (agent_id, title, subtitle, welcome_message, is_published, embed_count)
       VALUES (
         ${agent.id}, 
         ${name},
         'Como posso ajudar você?',
-        ${`Olá! Sou ${name}. Como posso ajudar você hoje?`}
+        ${`Olá! Sou ${name}. Como posso ajudar você hoje?`},
+        false,
+        0
       )
     `
 

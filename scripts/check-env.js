@@ -3,29 +3,31 @@ const path = require("path")
 
 // Load environment variables from .env file
 function loadEnvFile() {
-  const envPath = path.join(process.cwd(), ".env")
+  const envPath = path.join(__dirname, "..", ".env")
   if (fs.existsSync(envPath)) {
     const envContent = fs.readFileSync(envPath, "utf8")
     const lines = envContent.split("\n")
 
-    for (const line of lines) {
+    lines.forEach((line) => {
       const trimmedLine = line.trim()
       if (trimmedLine && !trimmedLine.startsWith("#")) {
         const [key, ...valueParts] = trimmedLine.split("=")
         if (key && valueParts.length > 0) {
           const value = valueParts.join("=")
-          process.env[key] = value
+          process.env[key.trim()] = value.trim()
         }
       }
-    }
+    })
   }
 }
 
-// Load .env file first
+// Load environment variables
 loadEnvFile()
 
+const { neon } = require("@neondatabase/serverless")
+
 function checkEnvironmentVariables() {
-  console.log("🔍 Checking environment variables...")
+  console.log("🔍 Checking environment variables...\n")
 
   const requiredVars = ["DATABASE_URL", "OPENAI_API_KEY"]
 
@@ -38,63 +40,85 @@ function checkEnvironmentVariables() {
     "NEXT_PUBLIC_STACK_PROJECT_ID",
   ]
 
-  let allGood = true
+  console.log("📋 Required Environment Variables:\n")
 
-  console.log("\n📋 Required Environment Variables:")
-  for (const varName of requiredVars) {
+  let allRequiredSet = true
+
+  requiredVars.forEach((varName) => {
     const value = process.env[varName]
     if (value) {
-      console.log(`  ✅ ${varName}: ${value.substring(0, 20)}...`)
+      const maskedValue = value.length > 20 ? value.substring(0, 17) + "..." : value
+      console.log(`  ✅ ${varName}: ${maskedValue}`)
     } else {
-      console.log(`  ❌ ${varName}: NOT SET`)
-      allGood = false
+      console.log(`  ❌ ${varName}: Not set`)
+      allRequiredSet = false
     }
-  }
+  })
 
-  console.log("\n📋 Optional Environment Variables:")
-  for (const varName of optionalVars) {
+  console.log("\n📋 Optional Environment Variables:\n")
+
+  optionalVars.forEach((varName) => {
     const value = process.env[varName]
     if (value) {
-      console.log(`  ✅ ${varName}: ${value.substring(0, 20)}...`)
+      const maskedValue = value.length > 20 ? value.substring(0, 17) + "..." : value
+      console.log(`  ✅ ${varName}: ${maskedValue}`)
     } else {
-      console.log(`  ⚠️  ${varName}: NOT SET`)
+      console.log(`  ⚠️  ${varName}: Not set`)
     }
-  }
+  })
 
   console.log("\n" + "=".repeat(50))
 
-  if (allGood) {
-    console.log("🎉 All required environment variables are set!")
+  if (allRequiredSet) {
+    console.log("\n🎉 All required environment variables are set!")
     console.log("✅ Your application should work correctly.")
   } else {
-    console.log("❌ Some required environment variables are missing!")
-    console.log("📝 Please check your .env file and add the missing variables.")
-    process.exit(1)
+    console.log("\n❌ Some required environment variables are missing!")
+    console.log("⚠️  Your application may not work correctly.")
   }
 
-  // Test database connection if DATABASE_URL is available
-  if (process.env.DATABASE_URL) {
-    testDatabaseConnection()
-  }
+  return allRequiredSet
 }
 
 async function testDatabaseConnection() {
+  if (!process.env.DATABASE_URL) {
+    console.log("\n❌ Cannot test database connection: DATABASE_URL not set")
+    return false
+  }
+
   try {
     console.log("\n🔗 Testing database connection...")
-
-    const { neon } = require("@neondatabase/serverless")
     const sql = neon(process.env.DATABASE_URL)
 
     const result = await sql`SELECT 1 as test`
 
-    if (result && result.length > 0) {
+    if (result && result.length > 0 && result[0].test === 1) {
       console.log("✅ Database connection successful!")
+      return true
     } else {
-      console.log("⚠️  Database connection returned unexpected result")
+      console.log("❌ Database connection failed: Unexpected response")
+      return false
     }
   } catch (error) {
-    console.log("❌ Database connection failed:", error.message)
+    console.log(`❌ Database connection failed: ${error.message}`)
+    return false
   }
 }
 
-checkEnvironmentVariables()
+// Run checks if called directly
+if (require.main === module) {
+  async function runChecks() {
+    const envOk = checkEnvironmentVariables()
+
+    if (envOk) {
+      await testDatabaseConnection()
+    }
+  }
+
+  runChecks().catch((error) => {
+    console.error("❌ Error running checks:", error.message)
+    process.exit(1)
+  })
+}
+
+module.exports = { checkEnvironmentVariables, testDatabaseConnection }

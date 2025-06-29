@@ -3,78 +3,84 @@ const path = require("path")
 
 // Load environment variables from .env file
 function loadEnvFile() {
-  const envPath = path.join(process.cwd(), ".env")
+  const envPath = path.join(__dirname, "..", ".env")
   if (fs.existsSync(envPath)) {
     const envContent = fs.readFileSync(envPath, "utf8")
     const lines = envContent.split("\n")
 
-    for (const line of lines) {
+    lines.forEach((line) => {
       const trimmedLine = line.trim()
       if (trimmedLine && !trimmedLine.startsWith("#")) {
         const [key, ...valueParts] = trimmedLine.split("=")
         if (key && valueParts.length > 0) {
           const value = valueParts.join("=")
-          process.env[key] = value
+          process.env[key.trim()] = value.trim()
         }
       }
-    }
+    })
   }
 }
 
-// Load .env file first
+// Load environment variables
 loadEnvFile()
 
 const { neon } = require("@neondatabase/serverless")
 
-async function runSqlFile(sqlFilePath) {
-  try {
-    console.log(`📄 Running SQL file: ${sqlFilePath}`)
+async function runSQLFile(filePath) {
+  if (!process.env.DATABASE_URL) {
+    throw new Error("DATABASE_URL environment variable is not set")
+  }
 
-    if (!process.env.DATABASE_URL) {
-      throw new Error("DATABASE_URL environment variable is not set. Please check your .env file.")
+  const sql = neon(process.env.DATABASE_URL)
+
+  const fullPath = path.resolve(filePath)
+
+  if (!fs.existsSync(fullPath)) {
+    throw new Error(`SQL file not found: ${fullPath}`)
+  }
+
+  console.log(`📄 Running SQL file: ${fullPath}`)
+
+  const sqlContent = fs.readFileSync(fullPath, "utf8")
+
+  const statements = sqlContent
+    .split(";")
+    .map((stmt) => stmt.trim())
+    .filter((stmt) => stmt.length > 0)
+
+  console.log(`📊 Found ${statements.length} SQL statements to execute`)
+
+  for (let i = 0; i < statements.length; i++) {
+    const statement = statements[i]
+    const shortStatement = statement.length > 50 ? statement.substring(0, 47) + "..." : statement
+    console.log(`  ${i + 1}/${statements.length}: ${shortStatement}`)
+
+    try {
+      await sql(statement)
+    } catch (error) {
+      console.error(`❌ Error executing statement ${i + 1}: ${error.message}`)
+      console.error(`Statement: ${statement}`)
+      throw error
     }
+  }
 
-    const sql = neon(process.env.DATABASE_URL)
+  console.log("✅ SQL file executed successfully!")
+}
 
-    // Check if file exists
-    if (!fs.existsSync(sqlFilePath)) {
-      throw new Error(`SQL file not found: ${sqlFilePath}`)
-    }
+// Run if called directly
+if (require.main === module) {
+  const filePath = process.argv[2]
 
-    // Read SQL file
-    const sqlContent = fs.readFileSync(sqlFilePath, "utf8")
-
-    // Split SQL into individual statements and execute them
-    const statements = sqlContent
-      .split(";")
-      .map((stmt) => stmt.trim())
-      .filter((stmt) => stmt.length > 0 && !stmt.startsWith("--"))
-
-    console.log(`📊 Found ${statements.length} SQL statements to execute`)
-
-    for (let i = 0; i < statements.length; i++) {
-      const statement = statements[i]
-      console.log(`  ${i + 1}/${statements.length}: ${statement.substring(0, 50)}...`)
-      await sql.unsafe(statement)
-    }
-
-    console.log("✅ SQL file executed successfully!")
-  } catch (error) {
-    console.error("❌ Error executing SQL file:", error.message)
-    console.error(error.stack)
+  if (!filePath) {
+    console.error("❌ Please provide a SQL file path")
+    console.error("Usage: node run-sql.js <path-to-sql-file>")
     process.exit(1)
   }
+
+  runSQLFile(filePath).catch((error) => {
+    console.error("❌ Error running SQL file:", error.message)
+    process.exit(1)
+  })
 }
 
-// Get SQL file path from command line arguments
-const sqlFilePath = process.argv[2]
-
-if (!sqlFilePath) {
-  console.error("❌ Please provide a SQL file path as an argument")
-  console.error("Usage: node run-sql.js <path-to-sql-file>")
-  process.exit(1)
-}
-
-// Resolve relative path
-const resolvedPath = path.resolve(sqlFilePath)
-runSqlFile(resolvedPath)
+module.exports = { runSQLFile }

@@ -12,12 +12,16 @@ CREATE TABLE agents (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     name VARCHAR(255) NOT NULL,
     description TEXT,
-    instructions TEXT,
-    model VARCHAR(100) DEFAULT 'gpt-4',
-    temperature DECIMAL(3,2) DEFAULT 0.7,
-    max_tokens INTEGER DEFAULT 1000,
+    system_prompt TEXT,
+    personality VARCHAR(255),
+    color VARCHAR(7) DEFAULT '#3B82F6',
     status VARCHAR(50) DEFAULT 'active',
-    user_id VARCHAR(255),
+    training_status VARCHAR(50) DEFAULT 'idle',
+    training_progress INTEGER DEFAULT 0,
+    training_stage VARCHAR(100),
+    training_error TEXT,
+    last_training TIMESTAMP,
+    user_id VARCHAR(255) DEFAULT 'user_1',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -47,11 +51,13 @@ CREATE TABLE messages (
 CREATE TABLE documents (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     agent_id UUID REFERENCES agents(id) ON DELETE CASCADE,
-    name VARCHAR(255) NOT NULL,
-    content TEXT NOT NULL,
-    type VARCHAR(100) DEFAULT 'text',
-    size INTEGER DEFAULT 0,
-    metadata JSONB DEFAULT '{}',
+    filename VARCHAR(255),
+    original_name VARCHAR(255),
+    file_type VARCHAR(100),
+    file_size INTEGER,
+    content TEXT,
+    status VARCHAR(50) DEFAULT 'processed',
+    error_message TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -74,8 +80,8 @@ CREATE TABLE function_calls (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     conversation_id UUID REFERENCES conversations(id) ON DELETE CASCADE,
     function_id UUID REFERENCES functions(id) ON DELETE CASCADE,
-    input JSONB DEFAULT '{}',
-    output JSONB DEFAULT '{}',
+    input_data JSONB DEFAULT '{}',
+    output_data JSONB DEFAULT '{}',
     status VARCHAR(50) DEFAULT 'completed',
     execution_time INTEGER DEFAULT 0,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -86,11 +92,17 @@ CREATE TABLE widget_configs (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     agent_id UUID REFERENCES agents(id) ON DELETE CASCADE,
     title VARCHAR(255) DEFAULT 'Chat Widget',
-    theme VARCHAR(50) DEFAULT 'light',
+    subtitle VARCHAR(255),
     primary_color VARCHAR(7) DEFAULT '#3b82f6',
     position VARCHAR(20) DEFAULT 'bottom-right',
     welcome_message TEXT DEFAULT 'Hello! How can I help you today?',
     placeholder TEXT DEFAULT 'Type your message...',
+    show_avatar BOOLEAN DEFAULT true,
+    enable_voice BOOLEAN DEFAULT false,
+    enable_file_upload BOOLEAN DEFAULT false,
+    is_published BOOLEAN DEFAULT false,
+    embed_count INTEGER DEFAULT 0,
+    last_embed TIMESTAMP,
     settings JSONB DEFAULT '{}',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -111,6 +123,7 @@ CREATE INDEX idx_conversations_status ON conversations(status);
 CREATE INDEX idx_messages_conversation_id ON messages(conversation_id);
 CREATE INDEX idx_messages_role ON messages(role);
 CREATE INDEX idx_documents_agent_id ON documents(agent_id);
+CREATE INDEX idx_documents_status ON documents(status);
 CREATE INDEX idx_functions_agent_id ON functions(agent_id);
 CREATE INDEX idx_functions_status ON functions(status);
 CREATE INDEX idx_function_calls_conversation_id ON function_calls(conversation_id);

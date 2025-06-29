@@ -3,114 +3,169 @@ const path = require("path")
 
 // Load environment variables from .env file
 function loadEnvFile() {
-  const envPath = path.join(process.cwd(), ".env")
+  const envPath = path.join(__dirname, "..", ".env")
   if (fs.existsSync(envPath)) {
     const envContent = fs.readFileSync(envPath, "utf8")
     const lines = envContent.split("\n")
 
-    for (const line of lines) {
+    lines.forEach((line) => {
       const trimmedLine = line.trim()
       if (trimmedLine && !trimmedLine.startsWith("#")) {
         const [key, ...valueParts] = trimmedLine.split("=")
         if (key && valueParts.length > 0) {
           const value = valueParts.join("=")
-          process.env[key] = value
+          process.env[key.trim()] = value.trim()
         }
       }
-    }
+    })
   }
 }
 
-// Load .env file first
+// Load environment variables
 loadEnvFile()
 
 const { neon } = require("@neondatabase/serverless")
 
-async function executeSQL(filename, description) {
-  console.log(`📄 ${description}...`)
+async function resetDatabase() {
+  if (!process.env.DATABASE_URL) {
+    throw new Error("DATABASE_URL environment variable is not set")
+  }
 
-  const sqlContent = fs.readFileSync(path.join(__dirname, filename), "utf8")
+  const sql = neon(process.env.DATABASE_URL)
 
-  // Split SQL into individual statements
-  const statements = sqlContent
+  console.log("🔄 Starting complete database reset...")
+
+  // Step 1: Clean database
+  console.log("\n📄 Step 1: Cleaning existing database...")
+  await cleanDatabase(sql)
+
+  // Step 2: Create tables
+  console.log("\n📄 Step 2: Creating tables...")
+  await createTables(sql)
+
+  // Step 3: Seed data
+  console.log("\n📄 Step 3: Seeding data...")
+  await seedData(sql)
+
+  // Step 4: Verify tables
+  console.log("\n🔍 Verifying tables...")
+  await verifyTables(sql)
+
+  console.log("\n🎉 Database reset completed successfully!")
+}
+
+async function cleanDatabase(sql) {
+  const cleanupStatements = [
+    "DROP TABLE IF EXISTS function_calls CASCADE",
+    "DROP TABLE IF EXISTS messages CASCADE",
+    "DROP TABLE IF EXISTS conversations CASCADE",
+    "DROP TABLE IF EXISTS widget_configs CASCADE",
+    "DROP TABLE IF EXISTS documents CASCADE",
+    "DROP TABLE IF EXISTS functions CASCADE",
+    "DROP TABLE IF EXISTS agents CASCADE",
+    "DROP FUNCTION IF EXISTS update_updated_at_column() CASCADE",
+  ]
+
+  console.log(`  Executing ${cleanupStatements.length} statements...`)
+
+  for (let i = 0; i < cleanupStatements.length; i++) {
+    const statement = cleanupStatements[i]
+    const shortStatement = statement.length > 50 ? statement.substring(0, 47) + "..." : statement
+    console.log(`  ${i + 1}/${cleanupStatements.length}: ${shortStatement}`)
+
+    try {
+      await sql(statement)
+    } catch (error) {
+      // Ignore errors for objects that don't exist
+      if (!error.message.includes("does not exist")) {
+        throw error
+      }
+    }
+  }
+
+  console.log("✅ Database cleaned")
+}
+
+async function createTables(sql) {
+  const createTablesPath = path.join(__dirname, "001-create-tables.sql")
+  const createTablesSQL = fs.readFileSync(createTablesPath, "utf8")
+
+  const statements = createTablesSQL
     .split(";")
     .map((stmt) => stmt.trim())
-    .filter((stmt) => stmt.length > 0 && !stmt.startsWith("--"))
+    .filter((stmt) => stmt.length > 0)
 
   console.log(`  Executing ${statements.length} statements...`)
 
-  const sql = neon(process.env.DATABASE_URL)
-
   for (let i = 0; i < statements.length; i++) {
     const statement = statements[i]
+    const shortStatement = statement.length > 50 ? statement.substring(0, 47) + "..." : statement
+    console.log(`  ${i + 1}/${statements.length}: ${shortStatement}`)
+
     try {
-      console.log(`  ${i + 1}/${statements.length}: ${statement.substring(0, 50)}...`)
-      await sql.unsafe(statement)
+      await sql(statement)
     } catch (error) {
-      if (filename === "000-clean-database.sql" && error.message.includes("does not exist")) {
-        // Ignore "does not exist" errors during cleanup
-        continue
-      }
-      console.error(`❌ Error on statement ${i + 1}:`, error.message)
-      console.error(`Statement: ${statement}`)
+      console.error(`❌ Error executing statement ${i + 1}: ${error.message}`)
       throw error
     }
   }
+
+  console.log("✅ Tables created")
 }
 
-async function verifyTables() {
-  console.log("🔍 Verifying tables...")
+async function seedData(sql) {
+  const seedDataPath = path.join(__dirname, "002-seed-data.sql")
+  const seedDataSQL = fs.readFileSync(seedDataPath, "utf8")
 
-  const sql = neon(process.env.DATABASE_URL)
-  const tables = await sql`
-    SELECT table_name 
-    FROM information_schema.tables 
-    WHERE table_schema = 'public' 
-    ORDER BY table_name
-  `
+  const statements = seedDataSQL
+    .split(";")
+    .map((stmt) => stmt.trim())
+    .filter((stmt) => stmt.length > 0)
 
-  console.log("📋 Created tables:")
-  tables.forEach((table) => {
-    console.log(`  ✓ ${table.table_name}`)
-  })
+  console.log(`  Executing ${statements.length} statements...`)
 
-  return tables.length
+  for (let i = 0; i < statements.length; i++) {
+    const statement = statements[i]
+    const shortStatement = statement.length > 50 ? statement.substring(0, 47) + "..." : statement
+    console.log(`  ${i + 1}/${statements.length}: ${shortStatement}`)
+
+    try {
+      await sql(statement)
+    } catch (error) {
+      console.error(`❌ Error executing statement ${i + 1}: ${error.message}`)
+      throw error
+    }
+  }
+
+  console.log("✅ Data seeded")
 }
 
-async function resetDatabase() {
+async function verifyTables(sql) {
   try {
-    console.log("🔄 Starting complete database reset...")
+    const tables = await sql`
+      SELECT table_name 
+      FROM information_schema.tables 
+      WHERE table_schema = 'public' 
+      ORDER BY table_name
+    `
 
-    if (!process.env.DATABASE_URL) {
-      throw new Error("DATABASE_URL environment variable is not set. Please check your .env file.")
-    }
+    console.log("📋 Created tables:")
+    tables.forEach((table) => {
+      console.log(`  ✓ ${table.table_name}`)
+    })
 
-    // Step 1: Clean existing database
-    await executeSQL("000-clean-database.sql", "Step 1: Cleaning existing database")
-    console.log("✅ Database cleaned")
-
-    // Step 2: Create tables
-    await executeSQL("001-create-tables.sql", "Step 2: Creating tables")
-    console.log("✅ Tables created")
-
-    // Step 3: Seed data
-    await executeSQL("002-seed-data.sql", "Step 3: Seeding data")
-    console.log("✅ Data seeded")
-
-    // Step 4: Verify
-    const tableCount = await verifyTables()
-
-    if (tableCount > 0) {
-      console.log("🎉 Database reset completed successfully!")
-      console.log(`📊 Total tables created: ${tableCount}`)
-    } else {
-      console.log("⚠️  Warning: No tables found after reset")
-    }
+    console.log(`📊 Total tables created: ${tables.length}`)
   } catch (error) {
-    console.error("❌ Error during database reset:", error.message)
-    console.error(error.stack)
-    process.exit(1)
+    console.error("❌ Error verifying tables:", error.message)
   }
 }
 
-resetDatabase()
+// Run reset if called directly
+if (require.main === module) {
+  resetDatabase().catch((error) => {
+    console.error("❌ Error resetting database:", error.message)
+    process.exit(1)
+  })
+}
+
+module.exports = { resetDatabase }
